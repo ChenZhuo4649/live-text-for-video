@@ -45,6 +45,7 @@
   let layer = null;
   let state = 'idle'; // idle | busy | active
   let activeVideo = null;
+  let resizeObserver = null; // 观察视频元素尺寸变化（全屏 / 播放器缩放）
 
   // ---------- 基础工具 ----------
 
@@ -126,6 +127,18 @@
 
   function showBtn(v) {
     activeVideo = v;
+
+    // 观察视频元素自身的尺寸变化 —— 全屏切换、网站自己的 CSS 全屏、播放器缩放
+    // 都会让它改变尺寸，从而触发重定位。比只监听 window resize 可靠得多。
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(scheduleRelocate);
+      resizeObserver.observe(v);
+    }
+
     const b = ensureBtn();
     placeBtn();
     b.classList.remove('lt-busy', 'lt-active');
@@ -385,14 +398,40 @@
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
 
-  window.addEventListener(
-    'resize',
-    () => {
-      if (state === 'active') clearLayer();
-      if (btn && btn.classList.contains('lt-show')) placeBtn();
-    },
-    true
-  );
+  // 全屏切换 / 窗口缩放 / 视频尺寸变化，这三类场景下浏览器要等一帧才会把布局算好。
+  // 若事件一到就调 getBoundingClientRect()，拿到的是旧坐标 ——
+  // 表现就是「全屏后小标跑到画面外」或「干脆看不见」。
+  // 所以统一走这个「等两帧再重定位」的调度器。
+  let relocatePending = false;
+  function scheduleRelocate() {
+    if (relocatePending) return;
+    relocatePending = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        relocatePending = false;
+
+        if (state === 'active') clearLayer();
+        if (!isUsable(activeVideo)) return;
+        if (!btn || !btn.classList.contains('lt-show')) return;
+
+        // 全屏进出时挂载点会变（body ⇄ fullscreenElement），把小标挪到新的根上
+        const root = mountRoot();
+        if (btn.parentNode !== root) root.appendChild(btn);
+
+        // 某些网站直接对 <video> 元素本身全屏。往 <video> 内部挂任何 DOM 都不会被渲染，
+        // 这时藏起小标，免得它看起来「消失了」或「留在画面外」。
+        if (root === activeVideo) {
+          btn.classList.remove('lt-show');
+          return;
+        }
+
+        placeBtn();
+      });
+    });
+  }
+
+  window.addEventListener('resize', scheduleRelocate, true);
+  document.addEventListener('fullscreenchange', scheduleRelocate);
 
   let rafPending = false;
   window.addEventListener(
@@ -403,22 +442,9 @@
       requestAnimationFrame(() => {
         rafPending = false;
         if (state === 'active') clearLayer();
-        if (btn && btn.classList.contains('lt-show')) placeBtn();
+        if (btn && btn.classList.contains('lt-show') && isUsable(activeVideo)) placeBtn();
       });
     },
     { passive: true, capture: true }
   );
-
-  document.addEventListener('fullscreenchange', () => {
-    clearLayer();
-    if (!isUsable(activeVideo)) return;
-    if (activeVideo.paused) {
-      ensureBtn();
-      mountRoot().appendChild(btn);
-      placeBtn();
-      btn.classList.add('lt-show');
-    } else {
-      hideBtn();
-    }
-  });
 })();
