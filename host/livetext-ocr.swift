@@ -209,7 +209,7 @@ func sendMessage(_ obj: [String: Any]) {
 
 // 调试日志：确认 host 有没有被浏览器启动、有没有收到消息。
 // 双通道：① 系统日志（不依赖文件权限，用 `log show` 读）② 二进制同目录 + ~/Library/Logs
-let hostLogger = Logger(subsystem: "com.zhuo.livetext", category: "host")
+let hostLogger = Logger(subsystem: "com.livetext.videoocr", category: "host")
 
 let debugLogPath: String = {
     let exe = CommandLine.arguments[0]

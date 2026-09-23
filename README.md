@@ -1,261 +1,263 @@
 # Live Text for Video
 
-**暂停视频 → 点画面右下角的小标 → 画面上的文字全部变成可拖选。**
+**English** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Русский](README.ru.md)
 
-识别引擎是 macOS 的 **Vision 框架** —— 和 Safari「实况文本」用的是同一套，所以质量一致，不是"接近"。
+**Pause any video → click the badge in the bottom-right corner → the on-screen text becomes selectable.**
 
-额外好处：识别出来的文字是**真正的 DOM 文本**，所以日语词典扩展（Yomitan 等）能直接在上面悬停查词，不只是复制。
+OCR is done by Apple's **Vision framework** — the exact same engine Safari's Live Text uses, so the quality is identical, not "close".
 
----
-
-## 它解决什么问题
-
-Safari 暂停视频时会浮出「实况文本」按钮，画面上的文字可以直接拖选复制。
-
-但 Chrome 没有这个能力 —— **网页沙箱里根本拿不到系统 OCR**。纯前端方案只能往浏览器里塞通用 OCR 模型，质量和速度都差一截。
-
-这个项目用 **Chrome 扩展 + 一个本机小程序** 把 Safari 那套体验复刻到 Chrome：扩展负责界面和抓帧，本机小程序负责调用苹果的 Vision 引擎。
+Bonus: the recognized text is a **real DOM text layer**, so dictionary extensions like Yomitan can look up words by hovering over it — not just copy.
 
 ---
 
-## 环境要求
+## What problem does this solve
 
-| 项 | 要求 |
+Safari shows a Live Text button when you pause a video, and the text on screen can be selected and copied directly.
+
+Chrome can't do this — **a web page sandbox has no access to system OCR**. Pure front-end solutions can only bundle a general-purpose OCR model into the browser, with noticeably worse quality and speed.
+
+This project brings the Safari experience to Chrome with a **Chrome extension + a tiny local helper**: the extension handles the UI and frame grabbing, the helper calls Apple's Vision engine.
+
+---
+
+## Requirements
+
+| Item | Requirement |
 |---|---|
-| 系统 | **macOS 13 或更高**（更低版本缺少「自动检测语言」能力） |
-| CPU | Apple Silicon 或 Intel 都可以（后端是 Universal Binary） |
-| 浏览器 | Chrome / Edge / Brave / Vivaldi / Opera（Chromium 系） |
-| 编译后端 | 需要 Command Line Tools：`xcode-select --install` |
+| OS | **macOS 13 or later** (earlier versions lack the "auto language detection" capability) |
+| CPU | Apple Silicon or Intel (the backend is a Universal Binary) |
+| Browser | Chrome / Edge / Brave / Vivaldi / Opera (Chromium-based) |
+| To compile the backend | Command Line Tools: `xcode-select --install` |
 
-> **Windows / Linux 用不了** —— 识别引擎是 macOS 专属的 Vision 框架。
-> **Safari 也不支持** —— 它的扩展 API 与 Chrome 体系不兼容。
-> 同一台 Mac 上的**不同 macOS 用户**需要各自跑一次安装脚本（注册是用户级的）。
+> **Windows / Linux won't work** — the engine is macOS-exclusive.
+> **Safari is not supported** — its extension API is incompatible with Chrome's.
+> **Different macOS users** on the same Mac each need to run the installer once (registration is per-user).
 
 ---
 
-## 安装
+## Install
 
-### 第 1 步：克隆并注册
+### Step 1: clone and register
 
 ```bash
-git clone https://github.com/<owner>/livetext.git
-cd livetext
+git clone https://github.com/ChenZhuo4649/live-text-for-video.git
+cd live-text-for-video
 ./install.sh
 ```
 
-脚本会依次：
+The script will:
 
-1. 检查系统版本与 CPU 架构
-2. 准备 OCR 后端 —— 已有可用的就跳过；否则用本机 `swiftc` 编译成 **Universal Binary**
-3. 把后端位置**注册给本机所有 Chromium 系浏览器**
-4. 打印装扩展的步骤
+1. Check the OS version and CPU architecture
+2. Prepare the OCR backend — skip if a working one exists, otherwise compile a **Universal Binary** with your local `swiftc`
+3. **Register the backend with every Chromium-based browser** on this machine
+4. Print the steps to install the extension
 
-### 第 2 步：装扩展
+### Step 2: install the extension
 
-1. 浏览器打开 `chrome://extensions`
-2. 打开右上角 **「开发者模式」**
-3. 点 **「加载已解压的扩展程序」**，选中仓库里的 `extension/` 目录
+1. Open `chrome://extensions`
+2. Turn on **Developer mode** (top right)
+3. Click **Load unpacked** and select the `extension/` folder in this repo
 
-装好后扩展 ID 应该显示为：
+The extension ID should read:
 
 ```
 hmigekegioajglfmifdfofilgigpbcah
 ```
 
-> **这个 ID 由扩展内置的公钥决定，与安装路径无关。**
-> 换电脑、换目录、换浏览器，都是同一个 —— 所以注册脚本不需要你手工抄 ID。
+> **This ID is derived from the public key embedded in the extension, independent of the install path.**
+> It stays the same across computers, folders, and browsers — which is why the installer never asks you to copy an ID.
 
-如果显示的不是这个 ID，把扩展**移除后重新加载**一次。
-
----
-
-## 怎么用
-
-1. 打开任意视频页面（YouTube / B 站 / 任何网站）
-2. **暂停**
-3. 画面**右下角浮出一个小圆标**
-4. **点它**
-5. 等约 0.5~1 秒 —— 画面上的文字变成可拖选，并且会**闪一下淡蓝底色**告诉你哪里有字
-6. 直接**拖选 → `Cmd+C`**
-7. **再点一次小标**收起，画面恢复干净
-
-鼠标移到文字上时，那一块会重新亮起，方便定位。
+If the shown ID differs, **remove the extension and load it again**.
 
 ---
 
-## 识别效果（实测数据）
+## Usage
 
-| 内容类型 | 表现 |
+1. Open any video page (YouTube, Bilibili, anywhere)
+2. **Pause**
+3. A small round badge appears in the **bottom-right corner of the video**
+4. **Click it**
+5. Wait ~0.5–1s — the on-screen text becomes selectable, and briefly **flashes a light blue background** to show you where the text is
+6. **Drag to select → `Cmd+C`**
+7. **Click the badge again** to dismiss; the video goes back to being clean
+
+Hovering over a text block re-highlights it, so you can find it again.
+
+---
+
+## Recognition quality (measured)
+
+| Content type | Result |
 |---|---|
-| 网址、代码、大字号高对比文字 | ✅ 满分，一字不差 |
-| 中文 / 日文字幕 | ✅ 满分 |
-| 密集终端小字 | ✅ 128 行里 72% 满分 |
-| 低对比度灰字 | ❌ 会崩，但置信度会掉到 0.3（可据此判断哪些结果不可信） |
+| URLs, code, large high-contrast text | ✅ Perfect, character for character |
+| Chinese / Japanese subtitles | ✅ Perfect |
+| Dense terminal text | ✅ 72% of 128 lines scored perfect |
+| Low-contrast grey text | ❌ Fails — but confidence drops to 0.3, so you can tell which results to distrust |
 
-耗时：一般画面 **0.5~1 秒**；密密麻麻的终端画面约 **1.1 秒**。
-
----
-
-## 语言设置
-
-**默认自动判断语言**（调用 Vision 的 `automaticallyDetectsLanguage`），中英日通吃，无需手动切换。
-
-> **为什么不能"中日都给"**：Vision 的语言包是**互斥**的。
-> 同时给出 `ja-JP` 和 `zh-Hans` 时，中文会被日化成繁体或日文汉字变体
-> （师→姉、试→試、给→給、这→汶），而且耗时翻近一倍。
-> 实测同一张日文试卷：只给 `zh-Hans` 出 **11 行**，`auto` 出 **44 行**。
-
-如果确定画面只有一种语言，手动指定会更**快**：点扩展图标 → 选「中文 + 英文」或「日文 + 英文」，立即生效。
+Timing: **0.5–1s** for typical frames; ~**1.1s** for a dense terminal screen.
 
 ---
 
-## 配合日语词典扩展（Yomitan 等）
+## Language
 
-文字层**刻意留在普通 DOM 里**（没有封进 Shadow DOM）—— 这样 Yomitan 这类词典扩展能扫到它，
-**按住 Shift 悬停即可查词**，不用先把文字复制出去。
+**Automatically detects the language by default** (via Vision's `automaticallyDetectsLanguage`), handling Chinese, English and Japanese out of the box.
 
-为此做了三处专门适配：
+> **Why you can't just pass both `ja-JP` and `zh-Hans`**: Vision's language packs are **mutually exclusive**.
+> When both are supplied, Chinese gets "Japanified" into traditional or Japanese kanji variants
+> (师→姉, 试→試, 给→給, 这→汶), and it takes nearly twice as long.
+> Measured on the same Japanese exam screenshot: `zh-Hans` alone produced **11 lines**, `auto` produced **44**.
 
-| 适配 | 为什么 |
+If you know the frame contains only one language, specifying it manually is **faster**: click the extension icon → pick "中文 + 英文" or "日文 + 英文". It takes effect immediately.
+
+---
+
+## Using with Japanese dictionary extensions (Yomitan, etc.)
+
+The text layer is **deliberately left in the normal DOM** (not hidden inside a Shadow DOM) — so dictionary extensions like Yomitan can scan it and you can **look up words by holding Shift and hovering**, instead of copying text out first.
+
+Three specific adaptations were made for this:
+
+| Adaptation | Why |
 |---|---|
-| `color: #fff` + `-webkit-text-fill-color: transparent` | 词典扩展会看 `color` 判断"这是不是可见正文"，直接写 `transparent` 可能被跳过。这样写颜色是白的、只是渲染透明，视觉上一样看不见 |
-| **两步宽度校准**（自适应字号 + 字距微调） | 词典按「鼠标坐标 → 字符序号」查词。若渲染宽度与画面实际宽度不符，字符序号会随位置**累积偏移** —— 症状是「行首的词查得准，越靠行尾偏得越多」 |
-| 含 CJK 的文本把**半角空格换成全角** | OCR 常给半角空格（宽度只有全角约 1/4），会让空格后面的字整体前移 |
+| `color: #fff` + `-webkit-text-fill-color: transparent` | Dictionary extensions may use `color` to decide whether text is "visible body text"; a direct `transparent` can get skipped. This way the color is white and only the fill is transparent — visually identical (invisible), but friendlier to that check |
+| **Two-step width calibration** (adaptive font size + letter-spacing) | Dictionaries map "mouse coordinate → character index". If the rendered width doesn't match the on-screen width, the character index **drifts cumulatively** — the symptom is "words near the start of a line are accurate, and it gets worse toward the end" |
+| **Half-width spaces → full-width** in CJK text | OCR often returns half-width spaces (about 1/4 the width of full-width), which shifts everything after the space |
 
-**两步校准的做法**：
+**How the two-step calibration works**:
 
 ```js
-// 第一步：按实际渲染宽度反推合适的字号
-//（只调字距的话，字号偏大时字符会被压得互相重叠，既显得挤、定位也变钝）
-newSize = curSize * (目标宽度 / 自然宽度)      // 限制在 0.6~1.7 倍，防 OCR 误差拉飞
+// Step 1: derive a suitable font size from the actual rendered width
+// (adjusting letter-spacing alone makes characters overlap when the font is too large —
+//  it looks cramped and positioning gets blunt)
+newSize = curSize * (targetWidth / naturalWidth)   // clamped to 0.6–1.7x against OCR noise
 
-// 第二步：剩余误差用 letter-spacing 收尾
-letterSpacing = (目标宽度 - 自然宽度) / (字符数 - 1)
+// Step 2: mop up the remainder with letter-spacing
+letterSpacing = (targetWidth - naturalWidth) / (charCount - 1)
 ```
 
-实测校准后**宽度误差为 0、字距约 0**。
+After calibration the measured **width error is 0 and letter-spacing is ~0**.
 
-> ⚠️ **不要用 `transform: scaleX` 做这个校准** —— 它会干扰鼠标命中判定，导致拖选和悬停定位失效。
+> ⚠️ **Do not use `transform: scaleX` for this** — it interferes with mouse hit-testing and breaks both drag-selection and hover positioning.
 
 ---
 
-## 它是怎么工作的
+## How it works
 
 ```
-video 暂停
-   └→ content.js 在画面右下角画一个小标（自己的 DOM，不碰播放器）
-        └→ 你点一下
-             ├→ sw.js 调 chrome.tabs.captureVisibleTab 截当前标签页
-             │       （拿的是合成后的干净像素，因此绕开了跨域 canvas 污染）
-             ├→ content.js 用 canvas 裁出视频画面区域（扣掉黑边）
-             ├→ 经 Native Messaging 管道送给本机后端（本地 stdio，不联网）
-             ├→ 后端用 Vision 识别，返回每行文字 + 归一化坐标 + 置信度
-             └→ content.js 在画面原位叠一层「文字透明但可选中」的文本层
+video paused
+   └→ content.js draws a badge at the video's bottom-right (its own DOM, never touches the player)
+        └→ you click it
+             ├→ sw.js calls chrome.tabs.captureVisibleTab
+             │       (captures composited pixels, sidestepping cross-origin canvas taint)
+             ├→ content.js crops the video area out with a canvas (dropping letterboxing)
+             ├→ sends it over a Native Messaging pipe to the local backend (no network)
+             ├→ the backend runs Vision, returning text + normalized coordinates + confidence
+             └→ content.js overlays a "transparent but selectable" text layer in place
 ```
 
-两个关键细节：
+Two details worth knowing:
 
-- **坐标翻转**：Vision 输出的归一化坐标原点在**左下**，CSS 原点在左上，渲染时做一次上下翻转。
-- **抓帧时机**：截图前先把小标自己藏起来，否则它会被拍进画面里、被 OCR 认出来。
+- **Coordinate flip**: Vision returns normalized coordinates with the origin at the **bottom-left**, CSS uses top-left, so a vertical flip happens at render time.
+- **Capture timing**: the badge hides itself before the screenshot, otherwise it gets captured and OCR'd as part of the frame.
 
 ---
 
-## 已知限制
+## Known limitations
 
-| 限制 | 说明 |
+| Limitation | Notes |
 |---|---|
-| 播放器 UI 会被一起识别 | 抓的是**屏幕合成像素**，所以进度条、按钮文字也会被拍进去。Safari 没这问题（它拿的是视频帧本身） |
-| DRM 内容不可用 | Netflix 等版权保护内容抓到的画面是黑的 |
-| 极少数查词偏一个字 | 汉字/假名/数字/标点的天然宽度不同，无法完全对齐 |
-| 开发者模式提示 | Chrome 冷启动会提示「请停用开发者模式扩展」，是例行提醒，不影响功能 |
+| Player UI gets recognized too | We capture **composited screen pixels**, so progress bars and button labels get picked up. Safari doesn't have this problem (it uses the video frame itself) |
+| DRM content won't work | Netflix and similar yield black frames |
+| Rare one-character lookup drift | Kanji / kana / digits / punctuation have inherently different widths and can't be perfectly aligned |
+| Developer mode prompt | Chrome shows "Disable developer mode extensions" on cold start — a routine notice that doesn't affect functionality |
 
 ---
 
-## 故障排查
+## Troubleshooting
 
-日志在**网页自己的 Console** 里（不是扩展页的）：视频页面按 `F12` → Console → 找 `[Live Text]`。
+Logs go to the **page's own console** (not the extension page): press `F12` on the video page → Console → look for `[Live Text]`.
 
-| 现象 | 原因 | 怎么办 |
+| Symptom | Cause | Fix |
 |---|---|---|
-| 小标不出现 | 页面没加载完，或该站不是用 `<video>` 播放 | 刷新页面 |
-| 报 `本机 OCR 后端未连接：...forbidden` | 注册文件里没有你这个扩展 ID | 重跑 `./install.sh`；仍不行就重启浏览器 |
-| 报 `Error when communicating with the native messaging host` | 后端启动失败 | 手动执行 `./host/livetext-ocr --help`，看它能不能跑 |
-| 报 `画面里没有识别到文字` | 这一帧确实没字，或字太小 | 换个有字的画面 |
-| 识别出乱码 | 语言判断错了 | 点扩展图标手动指定语言 |
+| No badge appears | Page not fully loaded, or the site doesn't use `<video>` | Reload the page |
+| `本机 OCR 后端未连接：...forbidden` | Your extension ID isn't in the registration file | Re-run `./install.sh`; if it persists, restart the browser |
+| `Error when communicating with the native messaging host` | Backend failed to start | Run `./host/livetext-ocr --help` manually to see if it executes |
+| `画面里没有识别到文字` | That frame genuinely has no text, or it's too small | Try a frame with text |
+| Garbled recognition | Language was misdetected | Click the extension icon and pick the language manually |
 
 ---
 
-## 卸载
+## Uninstall
 
-1. `chrome://extensions` → 找到 **Live Text for Video** → **移除**
-2. 删掉注册文件（按需，路径中的浏览器名可换成 Chromium / BraveSoftware/Brave-Browser / Microsoft Edge / Vivaldi 等）：
+1. `chrome://extensions` → find **Live Text for Video** → **Remove**
+2. Delete the registration files (adjust the browser folder as needed — also check Chromium / BraveSoftware/Brave-Browser / Microsoft Edge / Vivaldi):
 
 ```bash
-rm "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.zhuo.livetext.json"
+rm "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.livetext.videoocr.json"
 ```
 
-3. 删掉仓库目录
+3. Delete the repository folder
 
-**对其他扩展零影响**，不留残留。
+**Zero impact on other extensions**, no leftovers.
 
 ---
 
-## 隐私
+## Privacy
 
-**图片不离开你的电脑。** 整条链路是：
+**Your images never leave your computer.** The whole pipeline is:
 
 ```
-扩展抓帧 → 本地 stdio 管道 → 本机 Vision OCR → 返回文字
+extension captures a frame → local stdio pipe → on-device Vision OCR → text back
 ```
 
-没有任何网络请求，没有云端 API，没有遥测。
+No network requests, no cloud APIs, no telemetry.
 
 ---
 
-## 开发
+## Development
 
-### 目录结构
+### Layout
 
 ```
-livetext/
-├── install.sh                    一键安装：准备后端 + 注册
+live-text-for-video/
+├── install.sh                    one-shot setup: prepare backend + register
 ├── host/
-│   ├── livetext-ocr.swift        后端源码（OCR / draw / langs / stdio 四种模式）
-│   ├── build.sh                  编译 Universal Binary（arm64 + x86_64）
-│   └── livetext-ocr              编译产物（被 .gitignore 排除）
+│   ├── livetext-ocr.swift        backend source (OCR / draw / langs / stdio modes)
+│   ├── build.sh                  builds a Universal Binary (arm64 + x86_64)
+│   └── livetext-ocr              build output (excluded by .gitignore)
 ├── extension/
-│   ├── manifest.json             含 key（公钥）以固定扩展 ID
-│   ├── content.js                注入页面的主逻辑
-│   ├── content.css               小标与文本层样式
-│   ├── sw.js                     service worker（截图 + 转发）
-│   ├── popup.html / popup.js     语言切换面板
+│   ├── manifest.json             includes `key` (public key) to pin the extension ID
+│   ├── content.js                main injected logic
+│   ├── content.css               badge & text layer styles
+│   ├── sw.js                     service worker (screenshot + forwarding)
+│   ├── popup.html / popup.js     language switcher
 │   └── icons/
-├── poc/                          协议自测工具与测试图
-└── PoC-结果报告.md                识别质量的完整实测数据
+├── poc/                          protocol self-test tool and sample images
+└── PoC-结果报告.md                full measured data behind the quality numbers
 ```
 
-### 改了代码怎么生效
+### How changes take effect
 
-| 改了什么 | 怎么生效 |
+| Changed | To apply |
 |---|---|
-| `extension/` 下的 js / css / html | 在 `chrome://extensions` 点该扩展的**刷新**，再刷新视频页面 |
-| `host/` 下的 Swift 源码 | 重跑 `./build.sh`，**不用重启浏览器**（每次调用都会重新拉起后端进程） |
-| 注册清单本身 | 重跑 `./install.sh`；仍不生效再重启浏览器（清单有缓存） |
+| js / css / html under `extension/` | Click **reload** for the extension on `chrome://extensions`, then reload the video page |
+| Swift source under `host/` | Re-run `./build.sh` — **no browser restart needed** (the backend process is spawned fresh on every call) |
+| The registration manifest itself | Re-run `./install.sh`; if it still doesn't take, restart the browser (the manifest is cached) |
 
-### 后端也能单独用（不经过浏览器）
+### Using the backend standalone (without a browser)
 
 ```bash
 cd host
-./livetext-ocr ../poc/real_easy.jpg                    # 识别，输出 JSON
-./livetext-ocr ../poc/real_easy.jpg --min-conf=0.5     # 过滤低置信度
-./livetext-ocr ../poc/real_easy.jpg --langs=auto       # 自动检测语言（默认）
-./livetext-ocr langs                                   # 列出本机支持的语言
-./livetext-ocr draw 图片.png 结果.json -o 框图.png      # 把识别框画回图上，肉眼校验坐标
+./livetext-ocr ../poc/real_easy.jpg                    # recognize, JSON to stdout
+./livetext-ocr ../poc/real_easy.jpg --min-conf=0.5     # filter low-confidence lines
+./livetext-ocr ../poc/real_easy.jpg --langs=auto       # auto-detect language (default)
+./livetext-ocr langs                                   # list languages available on this Mac
+./livetext-ocr draw img.png result.json -o boxes.png   # draw the boxes back onto the image to eyeball accuracy
 ```
 
-### 独立测试通信协议
+### Testing the messaging protocol independently
 
-不用浏览器也能验证「4 字节长度前缀 + JSON」这层协议：
+You can validate the "4-byte length prefix + JSON" protocol without a browser:
 
 ```bash
 python3 poc/test_stdio.py host/livetext-ocr poc/real_easy.jpg

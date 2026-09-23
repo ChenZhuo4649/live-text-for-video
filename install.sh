@@ -13,7 +13,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 HOST_DIR="$ROOT/host"
 EXT_DIR="$ROOT/extension"
-HOST_NAME="com.zhuo.livetext"
+HOST_NAME="com.livetext.videoocr"
 HOST_BIN="$HOST_DIR/livetext-ocr"
 
 # 这个 ID 由 extension/manifest.json 里的 key（公钥）决定，

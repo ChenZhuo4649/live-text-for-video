@@ -6,7 +6,7 @@
 //
 // 它没有 DOM、不持有大数据、随时可能被 Chrome 回收，所以逻辑尽量薄。
 
-const HOST_NAME = 'com.zhuo.livetext';
+const HOST_NAME = 'com.livetext.videoocr';
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'capture') {
