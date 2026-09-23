@@ -86,6 +86,13 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ---
 
+### Opcional: reconocer automáticamente al pausar
+
+Haz clic en el icono de la extensión y marca **«Reconocer al pausar»** —
+así el texto aparece en cuanto pausas, sin pulsar el icono.
+
+A cambio, cada pausa ejecuta un reconocimiento (≈0,5–1 s), por eso está **desactivado por defecto**.
+
 ## Calidad de reconocimiento (medida)
 
 | Tipo de contenido | Resultado |

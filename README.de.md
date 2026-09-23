@@ -86,6 +86,13 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ---
 
+### Optional: automatische Erkennung beim Pausieren
+
+Klicken Sie auf das Erweiterungssymbol und aktivieren Sie **„Beim Pausieren erkennen"** —
+danach erscheint der Text sofort beim Pausieren, ohne auf das Symbol zu klicken.
+
+Der Preis dafür: Jedes Pausieren startet eine Erkennung (ca. 0,5–1 s) — daher **standardmäßig aus**.
+
 ## Erkennungsqualität (gemessen)
 
 | Inhaltstyp | Ergebnis |

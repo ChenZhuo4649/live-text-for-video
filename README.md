@@ -89,6 +89,13 @@ Hovering over a text block re-highlights it, so you can find it again.
 
 ---
 
+### Optional: recognize automatically on pause
+
+Click the extension icon and tick **"Pause to recognize"** — after that the text appears as
+soon as you pause, with no need to click the badge.
+
+The trade-off: every pause runs one recognition pass (~0.5–1s), so it is **off by default**.
+
 ## Recognition quality (measured)
 
 | Content type | Result |

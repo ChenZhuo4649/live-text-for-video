@@ -86,6 +86,13 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ---
 
+### Option : reconnaissance automatique à la pause
+
+Cliquez sur l'icône de l'extension et cochez **« Reconnaître à la pause »** —
+le texte apparaît alors dès la mise en pause, sans cliquer sur le bouton.
+
+En contrepartie, chaque pause lance une reconnaissance (≈ 0,5–1 s), donc c'est **désactivé par défaut**.
+
 ## Qualité de reconnaissance (mesurée)
 
 | Type de contenu | Résultat |

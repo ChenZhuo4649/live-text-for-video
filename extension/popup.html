@@ -3,7 +3,7 @@
 <title>Live Text for Video</title>
 <style>
   body {
-    width: 216px;
+    width: 224px;
     margin: 0;
     padding: 13px 14px 14px;
     font: 13px/1.5 -apple-system, "PingFang SC", sans-serif;
@@ -22,9 +22,15 @@
     padding: 5px 0;
     cursor: pointer;
   }
-  input[type="radio"] {
+  input[type="radio"],
+  input[type="checkbox"] {
     margin: 0;
     accent-color: #0a84ff;
+  }
+  .section {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid #ececec;
   }
   .hint {
     margin-top: 10px;
@@ -42,9 +48,16 @@
 <label><input type="radio" name="lang" value="zh-Hans,en-US">中文 + 英文</label>
 <label><input type="radio" name="lang" value="ja-JP,en-US">日文 + 英文</label>
 
+<div class="section">
+  <label><input type="checkbox" id="auto">暂停时自动识别</label>
+</div>
+
 <div class="hint">
   默认自动判断语言，中英日都能认。<br>
   手动指定会更快，但中日语言包互斥，一次只能用一种。
+  <br><br>
+  勾上「暂停时自动识别」后，视频一暂停就自动出字，不用点右下角小标。
+  代价是每次暂停都会跑一次识别（约 0.5~1 秒）。
 </div>
 
 <script src="popup.js"></script>

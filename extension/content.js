@@ -22,13 +22,21 @@
   // （师→姉、试→試、这→汶），而且耗时翻近一倍。
   let LANGS = DEFAULT_LANGS.slice();
 
+  // 「暂停即自动识别」开关，同样存在 chrome.storage.sync（扩展面板里切换）
+  let AUTO_ON_PAUSE = false;
+
   try {
-    chrome.storage.sync.get({ langs: DEFAULT_LANGS }, (v) => {
+    chrome.storage.sync.get({ langs: DEFAULT_LANGS, autoRecognize: false }, (v) => {
       if (v && Array.isArray(v.langs) && v.langs.length) LANGS = v.langs;
+      if (v) AUTO_ON_PAUSE = !!v.autoRecognize;
     });
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'sync' && changes.langs && Array.isArray(changes.langs.newValue)) {
+      if (area !== 'sync') return;
+      if (changes.langs && Array.isArray(changes.langs.newValue)) {
         LANGS = changes.langs.newValue;
+      }
+      if (changes.autoRecognize) {
+        AUTO_ON_PAUSE = !!changes.autoRecognize.newValue;
       }
     });
   } catch (e) {
@@ -272,14 +280,9 @@
 
   // ---------- 主流程 ----------
 
-  async function onBtnClick(ev) {
-    ev.preventDefault();
-    ev.stopPropagation();
-
-    if (state === 'active') {
-      clearLayer();
-      return;
-    }
+  // 真正干活的识别流程。「手动点小标」和「暂停即自动识别」都走这里，
+  // 避免两套逻辑各写一遍、以后改一处忘一处。
+  async function runRecognize() {
     if (state === 'busy') return;
     if (!isUsable(activeVideo)) return;
 
@@ -331,6 +334,41 @@
     }
   }
 
+  async function onBtnClick(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    // 已经出过结果了 —— 再点一下就是收起
+    if (state === 'active') {
+      clearLayer();
+      return;
+    }
+
+    await runRecognize();
+  }
+
+  // 「暂停即自动识别」的入口。
+  // 延后 600ms 再动手：拖动进度条会连续产生 pause/play，等状态稳定下来，
+  // 期间若用户又播放了、或已经识别过，就放弃这次。
+  let autoTimer = null;
+  function scheduleAutoRecognize(v) {
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(() => {
+      autoTimer = null;
+      if (!AUTO_ON_PAUSE) return;
+      if (!v.paused || !isUsable(v)) return;
+      if (activeVideo !== v) return;
+      if (state !== 'idle') return;
+      if (!btn || !btn.classList.contains('lt-show')) return;
+      runRecognize();
+    }, 600);
+  }
+
+  function cancelAutoRecognize() {
+    clearTimeout(autoTimer);
+    autoTimer = null;
+  }
+
   // ---------- 事件绑定 ----------
 
   function bindVideo(v) {
@@ -340,7 +378,10 @@
     v.addEventListener(
       'pause',
       () => {
-        if (isUsable(v)) showBtn(v);
+        if (!isUsable(v)) return;
+        showBtn(v);
+        // 开了「暂停即识别」就顺手跑一次，不用再点小标
+        if (AUTO_ON_PAUSE) scheduleAutoRecognize(v);
       },
       true
     );
@@ -359,6 +400,7 @@
     v.addEventListener(
       'play',
       () => {
+        cancelAutoRecognize();
         if (activeVideo === v) {
           clearLayer();
           hideBtn();

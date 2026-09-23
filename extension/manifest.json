@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Live Text for Video",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "暂停视频后点右下角小标，画面上的文字就能直接拖选复制。借 macOS Vision 引擎，与 Safari 实况文本同一套。",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2v/1VthNAB9IC+/TpSwdUYYd4lZIWQ8/IFJ9M2d1De09jZwCSGTOBqGldFKPmyqaadIypyDO2YKqC8XQ3NN72SEmTFXEhtaIqf8ZX0pWQoVQ2HwiTd1JwfIFfIQg87YR1CtRkdm94CTN9ulv1bjQR2w5rjlTFJJ8ZZyCcpf7jw80vsYU6C/jdF0Rs9aKrQzGXIbMmnpWYKJScrP7oaohE9h4oMLinGHpdZNNpKcpXrWxUv1OKiYUAc6haFHe49W/VC8JVjKwhRxusK4FU0qE/aHfYLFjdhBR9SPBcO+JV5Rz8lpvMH79F90lQtpjVygo+1cBcq8w9N+hY2PaUMrinQIDAQAB",
   "permissions": [
