@@ -93,6 +93,20 @@
     return !!v && v.isConnected && v.videoWidth > 0 && v.videoHeight > 0;
   }
 
+  // 页面上不止一个 <video>：B 站把鼠标移到推荐视频上会自动预览播放，
+  // 那个小窗也是 video，鼠标移开时它同样会触发 pause。
+  // 所以只对「够大、且在视口内真的可见」的视频出小标，把预览小窗排除掉。
+  const MIN_MAIN_VIDEO_AREA = 400 * 225;
+
+  function isMainVideo(v) {
+    if (!isUsable(v)) return false;
+    const r = v.getBoundingClientRect();
+    if (r.width * r.height < MIN_MAIN_VIDEO_AREA) return false;
+    const visW = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0);
+    const visH = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+    return visW > 40 && visH > 40;
+  }
+
   /** 视频实际画面的矩形（视口坐标，已扣掉 letterbox 黑边） */
   function frameRect(v) {
     const r = v.getBoundingClientRect();
@@ -378,7 +392,9 @@
     v.addEventListener(
       'pause',
       () => {
-        if (!isUsable(v)) return;
+        // 只认主视频 —— 推荐视频的悬停预览窗也会 pause，
+        // 不过滤的话那个小窗上也会冒出小标
+        if (!isMainVideo(v)) return;
         showBtn(v);
         // 开了「暂停即识别」就顺手跑一次，不用再点小标
         if (AUTO_ON_PAUSE) scheduleAutoRecognize(v);
@@ -389,7 +405,7 @@
     // 页面加载时视频本来就可能是暂停的（或在脚本注入前就被暂停了），
     // 这种情况下 pause 事件永远不会再来一次，所以要主动补一次检查。
     const checkAlreadyPaused = () => {
-      if (v.paused && isUsable(v)) showBtn(v);
+      if (v.paused && isMainVideo(v)) showBtn(v);
     };
     v.addEventListener('loadedmetadata', checkAlreadyPaused, true);
     v.addEventListener('durationchange', checkAlreadyPaused, true);
