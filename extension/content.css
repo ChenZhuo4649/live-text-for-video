@@ -1,0 +1,113 @@
+/* Live Text for Video — 注入样式
+ * 小标固定定位（视口坐标），文本层覆盖在视频画面区域上。
+ * 文本层的核心技巧：文字 color 透明 → 视觉上不存在；但它是真 DOM 文本 → 可拖选、可复制。
+ */
+
+#livetext-btn {
+  position: fixed;
+  z-index: 2147483647;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  background: rgba(28, 28, 30, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;
+  outline: none;
+  transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+#livetext-btn.lt-show {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+#livetext-btn:hover {
+  background: rgba(44, 44, 46, 0.88);
+}
+
+#livetext-btn.lt-busy {
+  background: rgba(28, 28, 30, 0.88);
+  pointer-events: none;
+}
+
+#livetext-btn.lt-busy svg {
+  animation: lt-spin 0.9s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+#livetext-btn.lt-active {
+  background: rgba(10, 132, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+#livetext-btn.lt-error {
+  background: rgba(255, 59, 48, 0.95);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* 图标不该拦截点击 —— 否则点在图标上时事件落在 svg 而不是按钮本身 */
+#livetext-btn svg {
+  pointer-events: none;
+}
+
+@keyframes lt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#livetext-layer {
+  position: fixed;
+  z-index: 2147483646;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#livetext-layer .lt-t {
+  position: absolute;
+  /* 关键：用 -webkit-text-fill-color 让文字不可见，而不是 color: transparent。
+     原因：外部词典扩展（Yomitan 等）很可能用 color 判断"这段文字是否可见正文"，
+     若 color 本身就是 transparent 可能被直接跳过。
+     这样写 color 是白色的、只是文字填充被设成透明 —— 视觉上完全一样（看不见），
+     但对可见性判断友好得多。 */
+  color: #ffffff;
+  -webkit-text-fill-color: transparent;
+  white-space: pre;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  font-family: -apple-system, "Hiragino Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+#livetext-layer .lt-t::selection {
+  background: rgba(10, 132, 255, 0.38);
+  -webkit-text-fill-color: transparent;
+}
+
+/* 识别完成时整体亮一下再淡出，让用户知道「哪里有字」。
+   没有这个提示的话，文字全透明，用户根本找不到可以拖的地方。 */
+#livetext-layer.lt-hint .lt-t {
+  background: rgba(10, 132, 255, 0.30);
+  border-radius: 3px;
+  transition: background 0.6s ease;
+}
+
+/* 鼠标悬停时高亮那一块，方便定位 */
+#livetext-layer .lt-t:hover {
+  background: rgba(10, 132, 255, 0.26);
+  border-radius: 3px;
+}

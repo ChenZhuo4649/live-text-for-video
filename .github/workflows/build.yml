@@ -1,0 +1,61 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 显示构建环境
+        run: |
+          sw_vers
+          uname -m
+          swiftc --version
+
+      - name: 编译 Universal Binary（最低 macOS 13）
+        run: |
+          cd host
+          LIVETEXT_MIN_MACOS=13.0 bash build.sh
+
+      - name: 校验产物
+        run: |
+          lipo -info host/livetext-ocr
+          otool -l host/livetext-ocr | grep -A3 LC_BUILD_VERSION | grep minos
+          host/livetext-ocr --help
+
+      - name: 打包扩展
+        run: |
+          cd extension
+          zip -r ../livetext-extension.zip . -x '*.DS_Store'
+          cd ..
+          ls -l livetext-extension.zip
+
+      - name: 上传到 workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: livetext-macos
+          path: |
+            host/livetext-ocr
+            livetext-extension.zip
+
+      - name: 打 tag 时发布 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            host/livetext-ocr
+            livetext-extension.zip
+          body: |
+            下载后：
+
+            1. 解压 `livetext-extension.zip`，或直接用仓库里的 `extension/` 目录
+            2. 把 `livetext-ocr` 放到仓库的 `host/` 目录下
+            3. 运行 `./install.sh`（它会检测到已有可用后端，跳过编译）
+            4. 按脚本提示在浏览器里加载扩展
+
+            支持 macOS 13 及以上，Apple Silicon 与 Intel 均可。

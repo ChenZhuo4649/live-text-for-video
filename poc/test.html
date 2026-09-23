@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>模拟视频画面 - OCR 测试图</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+  .frame {
+    width: 1280px; height: 720px; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #14161a 0%, #1c2027 55%, #101216 100%);
+    font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "PingFang SC", sans-serif;
+  }
+  .url {
+    position: absolute; left: 64px; top: 52px;
+    color: #9fd0ff; font-size: 31px; letter-spacing: .2px;
+  }
+  .code {
+    position: absolute; left: 64px; top: 128px;
+    color: #e8eaed; font-size: 27px; line-height: 1.75;
+    font-family: Menlo, "SF Mono", monospace;
+  }
+  .code .dim { color: #8b9198; }
+  .ui {
+    position: absolute; right: 64px; top: 52px;
+    color: #7d838b; font-size: 23px;
+  }
+  .sub {
+    position: absolute; left: 0; right: 0; bottom: 62px; text-align: center;
+  }
+  .sub span {
+    display: inline-block; background: rgba(0, 0, 0, .62); color: #ffffff;
+    font-size: 39px; padding: 9px 28px; border-radius: 6px; letter-spacing: .5px;
+  }
+  .tag {
+    position: absolute; left: 64px; bottom: 62px;
+    color: #6f757d; font-size: 22px;
+  }
+</style>
+
+<div class="frame">
+  <div class="url">https://github.com/apple/swift</div>
+  <div class="ui">Tutorial 03 / 12</div>
+
+  <div class="code">
+    swift build -c release<br>
+    ./livetext-ocr sample.png<br>
+    <span class="dim">// 输出 JSON，含每行文字的归一化坐标</span>
+  </div>
+
+  <div class="sub"><span>これはテストです。字幕の認識精度を確認します。</span></div>
+  <div class="tag">sample frame 001</div>
+</div>

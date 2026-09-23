@@ -1,0 +1,16 @@
+# 编译产物
+host/build/
+host/livetext-ocr
+host/*.log
+
+# 密钥：私钥绝不提交（manifest 里只需要公钥，已内联到 manifest.json）
+keys/
+
+# 测试与截图产物
+poc/out/
+poc/real_*.jpg
+poc/test_frame.png
+
+# 系统
+.DS_Store
+.*DS_Store*
