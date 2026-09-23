@@ -91,6 +91,8 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ### オプション：一時停止で自動認識
 
+![extension panel](docs/popup.png)
+
 拡張機能のアイコンをクリックし、**「一時停止時に自動認識」** にチェックを入れると、
 一時停止するだけで文字が出ます（アイコンをクリックする必要はありません）。
 

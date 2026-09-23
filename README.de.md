@@ -88,6 +88,8 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ### Optional: automatische Erkennung beim Pausieren
 
+![extension panel](docs/popup.png)
+
 Klicken Sie auf das Erweiterungssymbol und aktivieren Sie **„Beim Pausieren erkennen"** —
 danach erscheint der Text sofort beim Pausieren, ohne auf das Symbol zu klicken.
 

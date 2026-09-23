@@ -91,6 +91,8 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ### 可选：暂停就自动识别
 
+![extension panel](docs/popup.png)
+
 点扩展图标打开面板，勾上 **「暂停时自动识别」** —— 之后视频一暂停就自动出字，
 不用再点右下角的小标。
 

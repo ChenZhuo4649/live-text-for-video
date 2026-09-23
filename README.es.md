@@ -88,6 +88,8 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ### Opcional: reconocer automáticamente al pausar
 
+![extension panel](docs/popup.png)
+
 Haz clic en el icono de la extensión y marca **«Reconocer al pausar»** —
 así el texto aparece en cuanto pausas, sin pulsar el icono.
 

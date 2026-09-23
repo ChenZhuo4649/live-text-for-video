@@ -88,6 +88,8 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ### 선택 사항: 일시정지 시 자동 인식
 
+![extension panel](docs/popup.png)
+
 확장 아이콘을 클릭해 **「일시정지 시 자동 인식」** 을 체크하면,
 일시정지만 해도 텍스트가 나타납니다. 아이콘을 클릭할 필요가 없습니다.
 

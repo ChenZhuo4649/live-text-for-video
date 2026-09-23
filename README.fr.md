@@ -88,6 +88,8 @@ hmigekegioajglfmifdfofilgigpbcah
 
 ### Option : reconnaissance automatique à la pause
 
+![extension panel](docs/popup.png)
+
 Cliquez sur l'icône de l'extension et cochez **« Reconnaître à la pause »** —
 le texte apparaît alors dès la mise en pause, sans cliquer sur le bouton.
 
