@@ -10,6 +10,10 @@ Bonus: Der erkannte Text liegt als **echte DOM-Textebene** vor, daher können W�
 
 > Dieses Dokument ist eine Kurzfassung. Die vollständige Version steht im [englischen README](README.md).
 
+![demo](docs/demo.png)
+
+> Video pausieren und auf das Symbol klicken — der Text wird auswählbar. Blaue Flächen zeigen erkannten Text.
+
 ---
 
 ## Welches Problem wird gelöst

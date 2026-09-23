@@ -8,6 +8,10 @@ OCR is done by Apple's **Vision framework** — the exact same engine Safari's L
 
 Bonus: the recognized text is a **real DOM text layer**, so dictionary extensions like Yomitan can look up words by hovering over it — not just copy.
 
+![demo](docs/demo.png)
+
+> Pause the video, click the badge, and the on-screen text becomes selectable — the blue blocks mark where text was recognized.
+
 ---
 
 ## What problem does this solve

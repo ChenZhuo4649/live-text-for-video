@@ -10,6 +10,10 @@ Bonus : le texte reconnu est une **vraie couche de texte DOM**, donc les extensi
 
 > Ce document est un résumé. La version complète est dans le [README anglais](README.md).
 
+![demo](docs/demo.png)
+
+> Mettez la vidéo en pause et cliquez sur l'icône : le texte devient sélectionnable. Les zones bleues indiquent le texte reconnu.
+
 ---
 
 ## Quel problème cela résout-il

@@ -10,6 +10,10 @@ Extra: el texto reconocido es una **capa de texto DOM real**, por lo que extensi
 
 > Este documento es un resumen. La versión completa está en el [README en inglés](README.md).
 
+![demo](docs/demo.png)
+
+> Pausa el vídeo y haz clic en el icono: el texto se vuelve seleccionable. Las zonas azules marcan el texto reconocido.
+
 ---
 
 ## Qué problema resuelve

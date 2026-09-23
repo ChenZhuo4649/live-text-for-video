@@ -1,0 +1,89 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Live Text for Video — demo</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh;
+    background: #0b0b0d;
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans", sans-serif;
+  }
+  .player {
+    position: relative; width: 1040px; height: 585px;
+    background: linear-gradient(160deg, #14161a 0%, #1c2027 55%, #101216 100%);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .65);
+  }
+
+  .url {
+    position: absolute; left: 56px; top: 46px;
+    color: #9fd0ff; font-size: 26px;
+  }
+  .code {
+    position: absolute; left: 56px; top: 108px;
+    color: #e8eaed; font-size: 22px; line-height: 1.8;
+    font-family: Menlo, "SF Mono", monospace;
+  }
+  .dim { color: #8b9198; }
+
+  .sub {
+    position: absolute; left: 0; right: 0; bottom: 78px; text-align: center;
+  }
+  .sub span {
+    display: inline-block; background: rgba(0, 0, 0, .62); color: #fff;
+    font-size: 30px; padding: 7px 22px; border-radius: 5px;
+  }
+
+  /* 插件识别后叠加的「文字透明但可选中」层 —— 用底纹示意它的位置 */
+  .lt-hl  { background: rgba(10, 132, 255, .30); border-radius: 3px; }
+  .lt-sel { background: rgba(10, 132, 255, .45); border-radius: 3px; }
+
+  /* 右下角的小标（真实插件里它是蓝色激活态） */
+  .badge {
+    position: absolute; right: 20px; bottom: 46px;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(10, 132, 255, .92);
+    border: .5px solid rgba(255, 255, 255, .5);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+  }
+
+  .controls {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 46px;
+    display: flex; align-items: center; gap: 16px; padding: 0 22px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .78));
+    color: #d8dade; font-size: 13px;
+  }
+  .bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .25); position: relative; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 37%; background: #e5484d; border-radius: 2px; }
+</style>
+
+<div class="player">
+  <div class="url"><span class="lt-hl">https://github.com/ChenZhuo4649/live-text-for-video</span></div>
+
+  <div class="code">
+    swift build -c release<br>
+    ./install.sh<br>
+    <span class="dim"><span class="lt-hl"># 一键准备后端并注册</span></span>
+  </div>
+
+  <div class="sub"><span><span class="lt-sel">文字可以直接拖选复制</span></span></div>
+
+  <div class="badge">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffffff"
+         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>
+      <path d="M8 9h8M8 12h6M8 15h4"/>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <span>▶</span>
+    <span>03:12 / 08:41</span>
+    <div class="bar"><i></i></div>
+    <span>1080P</span>
+    <span>字幕</span>
+    <span>⛶</span>
+  </div>
+</div>
