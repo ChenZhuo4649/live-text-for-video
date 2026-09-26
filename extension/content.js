@@ -25,11 +25,20 @@
   // 「暂停即自动识别」开关，同样存在 chrome.storage.sync（扩展面板里切换）
   let AUTO_ON_PAUSE = false;
 
+  // 「自动识别时也高亮文字」开关（默认关）。
+  // ⚠️ 它**只管「暂停自动识别」那条路**。手动点右下角小标永远会亮框 ——
+  //    那是用户明确的「我要看」动作，不该被这个开关连坐（见 onBtnClick）。
+  let SHOW_HINT = false;
+
   try {
-    chrome.storage.sync.get({ langs: DEFAULT_LANGS, autoRecognize: false }, (v) => {
-      if (v && Array.isArray(v.langs) && v.langs.length) LANGS = v.langs;
-      if (v) AUTO_ON_PAUSE = !!v.autoRecognize;
-    });
+    chrome.storage.sync.get(
+      { langs: DEFAULT_LANGS, autoRecognize: false, showHint: false },
+      (v) => {
+        if (v && Array.isArray(v.langs) && v.langs.length) LANGS = v.langs;
+        if (v) AUTO_ON_PAUSE = !!v.autoRecognize;
+        if (v) SHOW_HINT = !!v.showHint;
+      }
+    );
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'sync') return;
       if (changes.langs && Array.isArray(changes.langs.newValue)) {
@@ -37,6 +46,9 @@
       }
       if (changes.autoRecognize) {
         AUTO_ON_PAUSE = !!changes.autoRecognize.newValue;
+      }
+      if (changes.showHint) {
+        SHOW_HINT = !!changes.showHint.newValue;
       }
     });
   } catch (e) {
@@ -207,9 +219,34 @@
 
   // ---------- 文本层 ----------
 
+  // 「识别完亮一下再淡出」的提示。抽成函数是因为 onBtnClick 也要用它 ——
+  // 自动识别出的层「没亮过」时，第一次手动点击要给它补亮。
+  // hintTimer 放在模块级：补亮时得重置计时，否则会被上一次的 timer 提前掐掉。
+  //
+  // instant 专给「补亮」用：那时层里的 span 早就存在了，直接加 class 会走 CSS 过渡，
+  // 而实测在 B 站这种重负载页面上 background 过渡被主线程挤得**两秒才刚起色**
+  // （rgba(...,0.016)，目标 0.30），3 秒后又要淡出 —— 等于白亮。
+  // 临时关掉过渡即可立刻变蓝，下一帧恢复，之后淡出仍有过渡。
+  // 正常识别（renderLayer）用不到这个：span 是新建的，首帧就是蓝色，本来就没有过渡。
+  let hintTimer = null;
+  function applyHint(el, { instant = false } = {}) {
+    const spans = instant ? el.querySelectorAll('.lt-t') : [];
+    for (const s of spans) s.style.transition = 'none';
+    el.classList.add('lt-hint');
+    if (spans.length) {
+      requestAnimationFrame(() => {
+        for (const s of spans) s.style.transition = '';
+      });
+    }
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      if (layer === el) el.classList.remove('lt-hint');
+    }, 3000);
+  }
+
   // 文本层刻意留在普通 DOM 里（不放进 Shadow DOM）：
   // 这样 Yomitan 这类日语词典扩展能扫描到这些文本节点，从而支持悬停查词。
-  function renderLayer(lines, f) {
+  function renderLayer(lines, f, { showHint = true } = {}) {
     if (layer && layer.isConnected) layer.remove();
 
     const el = document.createElement('div');
@@ -286,17 +323,21 @@
     // 文字完全透明，用户不知道哪里有字，所以先整体亮一下再淡出。
     // 注：早先用过 transform:scaleX 把文字拉伸到 OCR 给的 bbox 宽度以求高亮精确对齐，
     // 但那会干扰拖选的命中判定（实测会漏掉目标、甚至扫到整页文字），得不偿失，已去掉。
-    el.classList.add('lt-hint');
-    setTimeout(() => {
-      if (layer === el) el.classList.remove('lt-hint');
-    }, 3000);
+    //
+    // 亮不亮由调用方决定（见 runRecognize 的 showHint）：
+    //   手动点小标     → 亮（用户就是要看位置）
+    //   暂停自动识别   → 按面板开关，默认**不亮**（免得一暂停就闪一片蓝）
+    // 同时把「这层亮过没有」记在元素上，onBtnClick 靠它判断第一次点击是补亮还是收起。
+    el.dataset.ltHinted = showHint ? '1' : '0';
+    if (showHint) applyHint(el);
   }
 
   // ---------- 主流程 ----------
 
   // 真正干活的识别流程。「手动点小标」和「暂停即自动识别」都走这里，
   // 避免两套逻辑各写一遍、以后改一处忘一处。
-  async function runRecognize() {
+  // 两者**唯一的差异**是 showHint：手动恒为 true；自动按面板开关（默认 false）。
+  async function runRecognize({ showHint = true } = {}) {
     if (state === 'busy') return;
     if (!isUsable(activeVideo)) return;
 
@@ -326,7 +367,7 @@
       const lines = (res.lines || []).filter((l) => l.conf >= MIN_CONF);
       if (!lines.length) throw new Error('画面里没有识别到文字');
 
-      renderLayer(lines, f);
+      renderLayer(lines, f, { showHint });
       state = 'active';
       btn.classList.remove('lt-busy');
       btn.classList.add('lt-active');
@@ -352,12 +393,22 @@
     ev.preventDefault();
     ev.stopPropagation();
 
-    // 已经出过结果了 —— 再点一下就是收起
+    // 已经出过结果了
     if (state === 'active') {
+      // 自动识别出的层可能「没亮过」（开关默认关着）。用户点小标就是想看位置 ——
+      // 第一次点击先把它补亮，不重跑 OCR、瞬时生效；再点才是收起。
+      if (layer && layer.dataset.ltHinted !== '1') {
+        layer.dataset.ltHinted = '1';
+        // instant：层里的 span 已存在，不让它走那 0.6s（实测被主线程挤到 2s+）的过渡
+        applyHint(layer, { instant: true });
+        return;
+      }
       clearLayer();
       return;
     }
 
+    // ⚠️ 手动触发恒为 showHint = true，**故意不读 SHOW_HINT**。
+    // 那个开关只管「暂停自动识别」；手动点击是用户明确的「我要看」动作。
     await runRecognize();
   }
 
@@ -374,7 +425,8 @@
       if (activeVideo !== v) return;
       if (state !== 'idle') return;
       if (!btn || !btn.classList.contains('lt-show')) return;
-      runRecognize();
+      // 自动这条路按面板开关决定要不要亮框（默认不亮：暂停一下就闪一片蓝很烦）
+      runRecognize({ showHint: SHOW_HINT });
     }, 600);
   }
 

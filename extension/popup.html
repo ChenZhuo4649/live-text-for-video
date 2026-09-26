@@ -50,6 +50,7 @@
 
 <div class="section">
   <label><input type="checkbox" id="auto">暂停时自动识别</label>
+  <label><input type="checkbox" id="hint">自动识别时也高亮文字</label>
 </div>
 
 <div class="hint">
@@ -58,6 +59,9 @@
   <br><br>
   勾上「暂停时自动识别」后，视频一暂停就自动出字，不用点右下角小标。
   代价是每次暂停都会跑一次识别（约 0.5~1 秒）。
+  <br><br>
+  「自动识别时也高亮文字」只影响上面那条自动识别；手动点右下角小标时<b>始终</b>会亮框，
+  不受这个开关影响 —— 那是你主动要看文字位置。
 </div>
 
 <script src="popup.js"></script>
