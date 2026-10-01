@@ -43,7 +43,8 @@
   pointer-events: none;
 }
 
-#livetext-btn.lt-busy svg {
+#livetext-btn.lt-busy svg,
+#livetext-btn.lt-busy img {
   animation: lt-spin 0.9s linear infinite;
   transform-origin: 50% 50%;
 }
@@ -58,8 +59,20 @@
   border-color: rgba(255, 255, 255, 0.6);
 }
 
-/* 图标不该拦截点击 —— 否则点在图标上时事件落在 svg 而不是按钮本身 */
-#livetext-btn svg {
+/* 图标不该拦截点击 —— 否则点在图标上时事件落在图标而不是按钮本身。
+ *
+ * ⚠️ 图标已改成 **<img> 内嵌 data-URI SVG**（见 content.js 的 ICON）：
+ *    NicoNico 上无论怎么给内联 <svg> 加 !important，图标都画不出来
+ *    （诊断显示 display/color/尺寸全正常，视觉上却是空的 ✗）——
+ *    换成 <img> 之后它内部的 SVG 是独立文档，站点 CSS 进不去 ⇒ 从根上免疫。
+ *    下面 svg 的选择器**保留**：别处若还用到内联 svg 仍有兜底。 */
+#livetext-btn svg,
+#livetext-btn img {
+  display: block !important;
+  width: 17px !important;
+  height: 17px !important;
+  color: #ffffff !important;
+  flex: 0 0 auto;
   pointer-events: none;
 }
 
@@ -70,14 +83,23 @@
 }
 
 #livetext-layer {
-  position: fixed;
+  /* ⚠️ display 必须显式写 + !important，和上面 svg 那道是**同一个病根**：
+     实测（2026-10-01，NicoNico）全屏时站点有条规则把整个层设成 display:none，
+     表现是「识别明明成功了（小标 title 显示已识别 N 处），但屏幕上一个字都看不到」。
+     选择器够窄（#id）⇒ 影响不到站点自己。
+     另外 position: fixed 也一并加固：站点若把它改成 static，层会掉进文档流、跑到画面外。 */
+  display: block !important;
+  position: fixed !important;
   z-index: 2147483646;
   pointer-events: none;
   overflow: hidden;
 }
 
 #livetext-layer .lt-t {
-  position: absolute;
+  /* 同理加固：文字块也不能被站点规则设成 display:none / 改成 static。
+     （层被藏会整层消失；单块被藏会让那一行字莫名不见） */
+  display: block !important;
+  position: absolute !important;
   /* 关键：用 -webkit-text-fill-color 让文字不可见，而不是 color: transparent。
      原因：外部词典扩展（Yomitan 等）很可能用 color 判断"这段文字是否可见正文"，
      若 color 本身就是 transparent 可能被直接跳过。

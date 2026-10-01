@@ -55,16 +55,29 @@
     // 扩展上下文失效时静默忽略
   }
 
-  const ICON =
-    '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
-    ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+  // 图标：**用 <img> 内嵌 data-URI 的 SVG**，而不是内联 <svg>。
+  //
+  // 为什么（实测，2026-10-01 NicoNico）：一开始是内联 <svg> + stroke="currentColor"，
+  // 在 NicoNico 上无论怎么加 !important，图标都画不出来（诊断显示
+  // display=block / color=#fff / 尺寸正常，但**视觉上是空的**）—— 站点那条规则压得太深。
+  //
+  // <img> 内部的 SVG 是**独立的文档**，站点的 CSS **进不去**，
+  // 颜色/描边全部在 data-URI 里写死 ⇒ 从根上免疫，不用再跟站点斗优先级。
+  const ICON_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" ' +
+    'fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
     '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>' +
     '<path d="M8 9h8M8 12h6M8 15h4"/></svg>';
+  const ICON =
+    '<img alt="" width="17" height="17" draggable="false" src="data:image/svg+xml,' +
+    encodeURIComponent(ICON_SVG) +
+    '">';
 
   let btn = null;
   let layer = null;
   let state = 'idle'; // idle | busy | active
   let activeVideo = null;
+  let lastCropStats = null; // 最近一次裁剪图的「体检结果」（亮度等），出错时一起打出来
   let resizeObserver = null; // 观察视频元素尺寸变化（全屏 / 播放器缩放）
 
   // ---------- 基础工具 ----------
@@ -214,6 +227,27 @@
       w,
       h
     );
+    // 顺手给裁剪结果做个体检：**全黑 / 几乎全黑 / 有内容但没字** 是完全不同的病。
+    // 实测光看「画面里没有识别到文字」这一句，永远分不出是「裁到黑边」还是「那帧真没字」。
+    try {
+      const data = ctx.getImageData(0, 0, w, h).data;
+      let sum = 0, dark = 0, n = 0, maxL = 0;
+      for (let i = 0; i < data.length; i += 16) { // 每 4 个像素采一个，够用且快
+        const l = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+        sum += l;
+        n++;
+        if (l < 16) dark++;
+        if (l > maxL) maxL = l;
+      }
+      lastCropStats = {
+        裁剪尺寸: w + 'x' + h,
+        平均亮度: Math.round(sum / n),
+        近黑占比: Math.round((dark / n) * 100) + '%',
+        最亮: Math.round(maxL),
+      };
+    } catch (e) {
+      lastCropStats = { 体检失败: String(e) };
+    }
     return c.toDataURL('image/png').split(',')[1];
   }
 
@@ -348,6 +382,13 @@
     const v = activeVideo;
     const f = frameRect(v);
 
+    // 出错的现场数据，catch 里一起打出来。
+    // 为什么要它：content script 的 console **会显示在扩展的「错误」页上**，
+    // 所以用户截一张图，就能看到坐标 / dpr / 截图大小 / OCR 原始行数 / 小标样式 —— 不用来回猜。
+    // （实测过：光看「画面里没有识别到文字」这一句，完全分不出是"裁错位置"还是"那帧真没字"）
+    let capBytes = 0;
+    let ocrRawLines = -1;
+
     try {
       // 抓帧前把小标藏起来，免得它自己被拍进画面里
       btn.style.visibility = 'hidden';
@@ -356,6 +397,7 @@
       const cap = await sendMsg({ type: 'capture' });
       btn.style.visibility = '';
       if (!cap.ok) throw new Error(cap.error);
+      capBytes = (cap.dataUrl || "").length;
 
       const png = await cropToBase64(cap.dataUrl, f);
       if (state !== 'busy' || activeVideo !== v) return;
@@ -363,6 +405,7 @@
       const res = await sendMsg({ type: 'ocr', png: png, langs: LANGS });
       if (state !== 'busy' || activeVideo !== v) return;
       if (!res.ok) throw new Error(res.error);
+      ocrRawLines = (res.lines || []).length;
 
       const lines = (res.lines || []).filter((l) => l.conf >= MIN_CONF);
       if (!lines.length) throw new Error('画面里没有识别到文字');
@@ -375,13 +418,43 @@
       console.log('[Live Text] 识别到 ' + lines.length + ' 行，耗时 ' + res.elapsed_ms + 'ms');
     } catch (err) {
       console.error('[Live Text]', err);
+
+      // ── 现场快照（截图式诊断）──
+      const diag = (() => {
+        try {
+          const br = v ? v.getBoundingClientRect() : null;
+          const iconEl = btn ? btn.querySelector('svg, img') : null; // 图标现在是 <img>
+          const ss = iconEl ? getComputedStyle(iconEl) : null;
+          const bs = btn ? getComputedStyle(btn) : null;
+          const r2 = (x) => Math.round(x);
+          return {
+            视频矩形: br ? r2(br.x) + ',' + r2(br.y) + ' ' + r2(br.width) + 'x' + r2(br.height) : null,
+            画面区: v ? r2(f.x) + ',' + r2(f.y) + ' ' + r2(f.w) + 'x' + r2(f.h) : null,
+            dpr: window.devicePixelRatio,
+            视口: window.innerWidth + 'x' + window.innerHeight,
+            全屏元素: document.fullscreenElement ? document.fullscreenElement.tagName : null,
+            截图字节: capBytes,
+            OCR原始行数: ocrRawLines,
+            裁剪体检: lastCropStats,
+            小标: btn ? btn.className : null,
+            小标色: bs ? bs.color + ' / ' + bs.backgroundColor : null,
+            图标: iconEl && ss ? iconEl.tagName + ' ' + r2(iconEl.getBoundingClientRect().width) + 'x' + r2(iconEl.getBoundingClientRect().height) + ' display=' + ss.display + ' color=' + ss.color : null,
+          };
+        } catch (e) {
+          return { 诊断失败: String(e) };
+        }
+      })();
+      // ⚠️ 必须 JSON.stringify 拼进**消息字符串**里：
+      //    扩展的「错误」页只把第一个参数字符串化，对象参数会显示成 [object Object]（实测踩过）。
+      console.error('[Live Text] 诊断 ' + JSON.stringify(diag));
+
       const msg = err && err.message ? err.message : String(err);
       btn.style.visibility = '';
       btn.classList.remove('lt-busy');
       btn.classList.add('lt-error');
       // 把错误写到 title 上：content script 的 console 在隔离世界里，
       // 外部工具读不到，写进 DOM 才能被读到
-      btn.title = '出错：' + msg;
+      btn.title = '出错：' + msg + '｜' + JSON.stringify(diag);
       state = 'idle';
       setTimeout(() => {
         if (btn) btn.classList.remove('lt-error');
@@ -556,5 +629,183 @@
       });
     },
     { passive: true, capture: true }
+  );
+
+  // ---------- 两段式：第一下只取消选中，第二下才恢复播放 ----------
+  //
+  // 要的效果（对齐 Safari 实况文本）：
+  //   选中画面文字后，**第一下**点旁边空白 → 只取消选中、**不播放**；
+  //   **第二下**再点 → 才开始播放。
+  //
+  // 改之前的行为是「一下就被网站接走、立刻播起来」，根因有两层 ——
+  //   · B站 / YouTube 这类播放器**点画面本身就会切换播放** ⇒ 第一下会被网站接走。
+  //   · 我们的浮层挂在 document.body 上（不在播放器内部）⇒ 点**被文字块盖住**的区域时，
+  //     点击根本传不到网站，那一块就成了死区。
+  // 所以两个方向都得补：第一下**由我们吞掉**，第二下**由我们兜底**。
+
+  /** 底部留出多少像素给网站自己的控制栏（进度条 / 音量 / 全屏…）。
+   *  这一条带里的点击**完全不接管** —— 点进度条应当按网站原本的行为走。 */
+  const CONTROL_STRIP_PX = 60;
+
+  /**
+   * 点击目标是不是「播放器自己那一支」的元素。
+   *
+   * ⚠️ 这条是**必须的保险**，实测踩过坑：
+   *   陪读蛙 / Yomitan 这类词典翻译工具的浮条是**普通 `<div>`**（不是 `<button>`），
+   *   光靠排除 button/a/[role=...] **拦不住** ✗ —— 用户选完词去点「翻译」，
+   *   那一下被我们当成「取消选中」吞掉了 ⇒ **点了没反应** ✗
+   *
+   * 判据：从点击目标往上游走，**只要撞到 video 本身、或撞到「包含 video 的祖先」**，
+   * 就算播放器自己那一支 ✓。
+   *   · B站 的播放器浮层（绝对定位）在 `<div class="bpx-player-video-wrap">` 里，
+   *     那个容器**也包着 video** ⇒ 判为真 ⇒ 正常接管 ✓
+   *   · 陪读蛙 / Yomitan 的浮条挂在 `document.body` 下，是**另一支** ⇒ 判为假 ⇒ 绝不接管 ✓
+   *
+   * 这是**结构性**判据，不猜 class 名、不看 z-index、也不依赖 position ⇒ 稳。
+   */
+  function belongsToPlayerSubtree(t) {
+    if (!t) return false;
+    for (let el = t; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+      if (el === activeVideo) return true;
+      if (el.contains && el.contains(activeVideo)) return true;
+    }
+    return false;
+  }
+
+  /** 这次点击是否落在「我们要接管的那片区域」里。 */
+  function inOverlayZone(ev) {
+    if (!isUsable(activeVideo)) return false;
+    // ① 必须属于播放器自己那一支（第三方词典/翻译工具的浮条绝不能被接管）
+    if (!belongsToPlayerSubtree(ev.target)) return false;
+
+    const f = frameRect(activeVideo);
+    if (ev.clientX < f.x || ev.clientX > f.x + f.w) return false;
+    if (ev.clientY < f.y || ev.clientY > f.y + f.h) return false;
+    // ② 底部控制栏那一条让给网站（点进度条应当按网站原本的行为走）
+    if (ev.clientY > f.y + f.h - CONTROL_STRIP_PX) return false;
+    return true;
+  }
+
+  /** 点击是不是落在「我们自己的东西」上（小标 / 文字块）。
+   *
+   *  ⚠️ 小标必须在这里排掉：它本来挂在 body 下（安全），但**全屏时 `mountRoot()` 返回全屏元素**，
+   *     小标就被挂进了**播放器子树**里 ⇒ `belongsToPlayerSubtree(btn)` 判为真；
+   *     而它的位置（底边内缩 46px）又刚好落在 60px 控制栏**之外** ⇒ `inOverlayZone` 也成立。
+   *     于是连踩两坑（实测，只有全屏才复现，非全屏看不出来）：
+   *       ① 有选区时点小标 → 那一下被当成"取消选中"吞掉 ⇒ **点了没反应** ✗
+   *       ② 「补亮」那一支（state 仍是 'active'，见 onBtnClick）→ 冒泡里的兜底播放被触发
+   *          ⇒ **点一下图标，视频自己就播起来了** ✗
+   */
+  function isOwnUi(t) {
+    if (!t || !t.closest) return false;
+    return !!(t.closest('.lt-t') || t.closest('#livetext-btn'));
+  }
+
+  function hasRealSelection() {
+    const sel = window.getSelection();
+    return !!sel && !sel.isCollapsed && String(sel).length > 0;
+  }
+
+  // ── 手势记录：mousedown 记起点，click 时判断「这一下到底是什么」 ──
+  //
+  // 三种手势必须分开（都在 state==='active'、都点在画面空白处）：
+  //   ① 【点一下】    → 第一下：**取消选中，且不播放**
+  //   ② 【拖选收尾】  → **保住刚拖出来的选区**，但别让网站接走这一下（否则它会 toggle 播放）
+  //   ③ 【第二下点】  → 交给下面冒泡的兜底播放
+  //
+  // ⚠️ 判据**不能只看"此刻有没有选区"**：
+  //    拖选收尾时浏览器也会补一个 click，那时选区是**新的、非空的** ——
+  //    误当成 ① 就会把用户刚拖出来的选区当场抹掉 ✗（实测踩过）
+  //    真正的判据是「**mousedown → click 之间鼠标有没有位移**」。
+  const DRAG_THRESHOLD_PX = 5;
+  let gesture = null; // 本次点击的起点 + 起手时有没有选区
+
+  document.addEventListener(
+    'mousedown',
+    (ev) => {
+      gesture = null;
+      // 只认左键。中键/右键（B站 有自己的右键菜单）一律不碰 ——
+      // 否则我们那次 stopPropagation 可能把网站的右键菜单一起挡掉。
+      if (ev.button !== 0) return;
+      if (state !== 'active') return;
+      if (!inOverlayZone(ev)) return;
+      if (isOwnUi(ev.target)) return; // 文字块上 = 拖选中；小标上 = 点按钮
+
+      gesture = { x: ev.clientX, y: ev.clientY, hadSelection: hasRealSelection() };
+
+      if (gesture.hadSelection) {
+        // ⚠️ 这里**只 stopPropagation，绝不 preventDefault**：
+        //    preventDefault 会连带禁掉浏览器「拖选」的默认行为 ✗
+        //    ⇒ 用户从空白处起手重新拖选时选不中（这个 bug 实测存在过，已修）
+        ev.stopPropagation();
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    'click',
+    (ev) => {
+      const g = gesture;
+      gesture = null; // 一次性消费
+
+      if (state !== 'active') return;
+      if (!inOverlayZone(ev)) return;
+      if (isOwnUi(ev.target)) return;
+      if (!g) return; // 没有对应的 mousedown（键盘触发 / 脚本合成）→ 不插手
+
+      const moved =
+        Math.abs(ev.clientX - g.x) > DRAG_THRESHOLD_PX ||
+        Math.abs(ev.clientY - g.y) > DRAG_THRESHOLD_PX;
+
+      // ① 拖选收尾：**保住新选区**，但把这一下吞掉（网站收不到 ⇒ 不会自己播起来）
+      if (moved && hasRealSelection()) {
+        ev.stopPropagation();
+        return;
+      }
+
+      // ② 「第一下」：起手时确实有选区 ⇒ 这一下是「取消选中」
+      if (g.hadSelection) {
+        ev.preventDefault();
+        ev.stopPropagation(); // 吞掉 ⇒ 网站收不到 ⇒ 不会自己播起来
+        const sel = window.getSelection();
+        if (sel) sel.removeAllRanges(); // 兜一道：确保选区真的清掉
+      }
+      // ③ 其余情况（起手时本来就没选区）→ 什么都不做，交给下面冒泡的兜底播放
+    },
+    true
+  );
+
+  // ── 第二下：兜底播放。⚠️ 必须走**冒泡**，而且必须**延后一点** ──
+  //
+  // 为什么要冒泡：capture 阶段我们先跑 → play() → 网站的处理器再跑 → 它 toggle 一下 → 变回暂停 ✗
+  //
+  // 为什么还要延后 300ms（实测抓到的）：
+  //   B站 这类**自研播放器**的点击处理**晚于** document 的冒泡（挂在 window 或自己的状态机上）。
+  //   我们一 play()，它随后也按自己的状态 toggle 一次 ⇒ **双重动作** ⇒
+  //   实测事件序列 `play@892 → playing@895 → pause@1095`：播起来 200ms 后又被按回去 ✗
+  //   所以改成「先等 300ms，看网站有没有自己接走；它没接走我们才补」✓
+  //   —— 会响应的网站（B站/YouTube）秒播，用户根本感受不到这 300ms；
+  //      只有真不响应的（普通 <video controls>）才会等这 300ms ✓
+  const FALLBACK_PLAY_DELAY_MS = 300;
+
+  document.addEventListener(
+    'click',
+    (ev) => {
+      if (state !== 'active') return;
+      if (!inOverlayZone(ev)) return;
+      if (isOwnUi(ev.target)) return; // 小标 / 文字块上不插手（含"点小标补亮"那一支）
+      if (hasRealSelection()) return; // 还有选区 ⇒ 是拖选，不是"第二下"
+      if (!activeVideo.paused) return; // 网站已经处理了 → 不插嘴
+
+      const v = activeVideo;
+      setTimeout(() => {
+        // 再确认一次：这 300ms 里网站可能已经自己播起来了
+        if (state === 'active' && v === activeVideo && v.isConnected && v.paused) {
+          v.play().catch(() => {});
+        }
+      }, FALLBACK_PLAY_DELAY_MS);
+    },
+    false
   );
 })();
