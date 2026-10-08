@@ -113,11 +113,17 @@ func runOCR(_ cg: CGImage, langs: [String], fast: Bool) -> [Line] {
         stderr("Vision 报错: \(error)\n")
     }
 
-    // 排序成阅读顺序：先上后下、先左后右（Vision 原点在左下，故 y 越大越靠上）
-    return box.lines.sorted { a, b in
-        if abs(a.y - b.y) > 0.012 { return a.y > b.y }
-        return a.x < b.x
-    }
+    // ⚠️ 不要把结果再排序一遍 —— Vision 的原始顺序**已经是按文本块（栏）组织的阅读顺序**。
+    //
+    // 实测（2026-10-08，四张不同版面的图：多栏 App 界面 / 整屏桌面 / GitHub issue 页 / 终端）：
+    //   Vision 输出天然分成若干块，每块是一栏（或一个独立文字区域），
+    //   块内按 y 递增、块间按栏从左到右。Mac「实况文本」用的就是这套顺序。
+    //
+    // 曾经这里做过一次「全局按 y 排序」（abs(a.y-b.y) > 0.012 才换 x 比），结果是灾难：
+    //   多栏画面里三栏的行 y 本就交错 ⇒ 块被打散成逐行交错 ⇒ 渲染进 DOM 后
+    //   「DOM 顺序 ≠ 视觉分栏」；而浏览器原生 Selection **只按 DOM 顺序**取范围，
+    //   ⇒ 从右栏往下拖选，会把 DOM 上夹在中间的另一栏零散文字一起选中（串栏）。
+    return box.lines
 }
 
 // MARK: - 画框校验
