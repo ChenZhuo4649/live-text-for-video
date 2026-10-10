@@ -79,7 +79,13 @@ func stderr(_ s: String) {
 
 // MARK: - OCR
 
-func runOCR(_ cg: CGImage, langs: [String], fast: Bool) -> [Line] {
+/// 返回 (识别结果, 错误信息)。error 非 nil 表示**识别过程本身失败了**，
+/// 与「识别成功但画面里确实没有文字」是两回事 —— 调用方必须区别对待。
+///
+/// 以前这里只把错误打到 stderr 就继续往下走，于是 Vision 一旦抛错，
+/// 上层的表现就是「画面里没有识别到文字」。用户看到的是"没字"，
+/// 真实原因是"识别失败了"，两者排查方向完全相反，纯粹是被这个签名吃掉的。
+func runOCR(_ cg: CGImage, langs: [String], fast: Bool) -> (lines: [Line], error: String?) {
     let box = LineBox()
 
     let req = VNRecognizeTextRequest { request, _ in
@@ -110,7 +116,12 @@ func runOCR(_ cg: CGImage, langs: [String], fast: Bool) -> [Line] {
     do {
         try handler.perform([req])
     } catch {
-        stderr("Vision 报错: \(error)\n")
+        // 把 NSError 的域 / 码带上：只给 localizedDescription 的话，
+        // 同一个「识别失败」在日志里分不清是内存不足、语言包缺失还是图坏了。
+        let ns = error as NSError
+        let msg = "Vision 识别失败（\(ns.domain) #\(ns.code)）：\(error.localizedDescription)"
+        stderr(msg + "\n")
+        return ([], msg)
     }
 
     // ⚠️ 不要把结果再排序一遍 —— Vision 的原始顺序**已经是按文本块（栏）组织的阅读顺序**。
@@ -123,7 +134,7 @@ func runOCR(_ cg: CGImage, langs: [String], fast: Bool) -> [Line] {
     //   多栏画面里三栏的行 y 本就交错 ⇒ 块被打散成逐行交错 ⇒ 渲染进 DOM 后
     //   「DOM 顺序 ≠ 视觉分栏」；而浏览器原生 Selection **只按 DOM 顺序**取范围，
     //   ⇒ 从右栏往下拖选，会把 DOM 上夹在中间的另一栏零散文字一起选中（串栏）。
-    return box.lines
+    return (box.lines, nil)
 }
 
 // MARK: - 画框校验
@@ -262,8 +273,18 @@ func runStdioMode() {
         trace("收到图片 \(pngData.count) 字节 \(cg.width)x\(cg.height)")
 
         let t0 = Date()
-        let lines = runOCR(cg, langs: langs, fast: false)
+        let (lines, ocrErr) = runOCR(cg, langs: langs, fast: false)
         let ms = Int(Date().timeIntervalSince(t0) * 1000)
+
+        // ⚠️ 识别失败必须回 ok:false，不能回 ok:true + 空行。
+        //    否则上层只能看到「0 行」，再被翻译成「画面里没有识别到文字」，
+        //    —— 用户会以为是自己截的那帧没字，其实是 Vision 根本没跑成功。
+        if let e = ocrErr {
+            dbg("Vision 失败: \(e)")
+            sendMessage(["ok": false, "elapsed_ms": ms, "error": e])
+            continue
+        }
+
         dbg("识别完成 \(lines.count) 行 \(ms)ms")
 
         sendMessage([
@@ -412,7 +433,12 @@ default:
     }
 
     let t0 = Date()
-    var lines = runOCR(cg, langs: langs, fast: fast)
+    let (allLines, ocrErr) = runOCR(cg, langs: langs, fast: fast)
+    if let e = ocrErr {
+        stderr(e + "\n")
+        exit(1)
+    }
+    var lines = allLines
     let rawCount = lines.count
     if minConf > 0 {
         lines = lines.filter { $0.conf >= minConf }

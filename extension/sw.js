@@ -23,10 +23,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     };
 
-    // captureVisibleTab 抓的是「窗口里当前可见的那个标签」。
-    // 如果发起请求的标签不在前台，就会抓到别的页面，所以先把它激活。
-    if (tab && tab.id != null && !tab.active) {
-      chrome.tabs.update(tab.id, { active: true }, () => setTimeout(doCapture, 180));
+    // captureVisibleTab 只能截取窗口当前可见的标签页。
+    // 不要为了后台自动识别而激活标签页：那会打断用户正在看的页面。
+    // 后台标签无法可靠地单独截图，明确失败并让用户切回该标签页再试。
+    if (tab && !tab.active) {
+      sendResponse({
+        ok: false,
+        error: '为避免切换当前标签页，后台标签页无法截图；请切回此标签页后再识别',
+      });
     } else {
       doCapture();
     }
